@@ -1,28 +1,54 @@
 
 import { useState, useEffect } from "react";
-
-const links = [
-  { name: "급식표", url: "https://school.koreacharts.com/school/meals/B000023143/contents.html", icon: "📘" },
-  { name: "구글 클래스룸", url: "http://classroom.google.com/?pli=1", icon: "💬" },
-  { name: "구글 챗", url: "https://mail.google.com/chat/u/0/#chat/home", icon: "💬" },
-];
+import {
+  auth, db, provider, signInWithPopup, signOut, doc, getDoc, setDoc
+} from "./firebase";
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [note, setNote] = useState("");
+  const [timetable, setTimetable] = useState(Array(5).fill(""));
   const [darkMode, setDarkMode] = useState(false);
-  const [timetable, setTimetable] = useState(() =>
-    JSON.parse(localStorage.getItem("timetable") || "[]")
-  );
-  const [note, setNote] = useState(() =>
-    localStorage.getItem("note") || ""
-  );
+
+  useEffect(() => {
+    const storedNote = localStorage.getItem("note");
+    const storedTimetable = JSON.parse(localStorage.getItem("timetable") || "[]");
+    setNote(storedNote || "");
+    setTimetable(storedTimetable);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("note", note);
+  }, [note]);
 
   useEffect(() => {
     localStorage.setItem("timetable", JSON.stringify(timetable));
   }, [timetable]);
 
-  useEffect(() => {
-    localStorage.setItem("note", note);
-  }, [note]);
+  const handleLogin = async () => {
+    const result = await signInWithPopup(auth, provider);
+    setUser(result.user);
+    const userDoc = await getDoc(doc(db, "users", result.user.uid));
+    if (userDoc.exists()) {
+      const data = userDoc.data();
+      setNote(data.note || "");
+      setTimetable(data.timetable || Array(5).fill(""));
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    setUser(null);
+  };
+
+  const saveToCloud = async () => {
+    if (!user) return;
+    await setDoc(doc(db, "users", user.uid), {
+      note,
+      timetable
+    });
+    alert("저장 완료!");
+  };
 
   return (
     <div style={{
@@ -34,13 +60,24 @@ export default function App() {
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <h1>🎓 내 학교 포털</h1>
-        <button onClick={() => setDarkMode(!darkMode)}>
-          {darkMode ? '☀️' : '🌙'}
-        </button>
+        <div>
+          <button onClick={() => setDarkMode(!darkMode)} style={{ marginRight: '1rem' }}>
+            {darkMode ? '☀️' : '🌙'}
+          </button>
+          {!user ? (
+            <button onClick={handleLogin}>Google 로그인</button>
+          ) : (
+            <button onClick={handleLogout}>로그아웃</button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
-        {links.map((link, idx) => (
+        {[
+          { name: "급식표", url: "https://school.koreacharts.com/school/meals/B000023143/contents.html", icon: "📘" },
+          { name: "구글 클래스룸", url: "http://classroom.google.com/?pli=1", icon: "💬" },
+          { name: "구글 챗", url: "https://mail.google.com/chat/u/0/#chat/home", icon: "💬" },
+        ].map((link, idx) => (
           <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" style={{
             textDecoration: 'none',
             border: '1px solid #ccc',
@@ -59,14 +96,14 @@ export default function App() {
 
       <h2>🕐 시간표 작성</h2>
       <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '2rem' }}>
-        {[...Array(5)].map((_, i) => (
+        {timetable.map((item, i) => (
           <input
             key={i}
-            value={timetable[i] || ""}
+            value={item}
             onChange={(e) => {
-              const newTimetable = [...timetable];
-              newTimetable[i] = e.target.value;
-              setTimetable(newTimetable);
+              const updated = [...timetable];
+              updated[i] = e.target.value;
+              setTimetable(updated);
             }}
             placeholder={`교시 ${i + 1} 내용 입력`}
             style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
@@ -80,8 +117,10 @@ export default function App() {
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="오늘 해야 할 일, 중요한 일정 등을 메모하세요"
-        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', marginBottom: '1rem' }}
       />
+
+      {user && <button onClick={saveToCloud}>☁️ 클라우드에 저장</button>}
     </div>
   );
 }
