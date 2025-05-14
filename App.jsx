@@ -55,19 +55,16 @@ export default function App() {
       backgroundColor: darkMode ? '#1a1a1a' : '#ffffff',
       color: darkMode ? '#ffffff' : '#000000',
       minHeight: '100vh',
-      padding: '1rem',
-      transition: 'all 0.3s ease'
+      padding: '1rem'
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <h1>🎓 내 학교 포털</h1>
         <div>
-          <button onClick={() => setDarkMode(!darkMode)} style={{ marginRight: '1rem' }}>
-            {darkMode ? '☀️' : '🌙'}
-          </button>
-          {!user ? (
-            <button onClick={handleLogin}>Google 로그인</button>
-          ) : (
+          <button onClick={() => setDarkMode(!darkMode)}>{darkMode ? "☀️" : "🌙"}</button>
+          {user ? (
             <button onClick={handleLogout}>로그아웃</button>
+          ) : (
+            <button onClick={handleLogin}>Google 로그인</button>
           )}
         </div>
       </div>
